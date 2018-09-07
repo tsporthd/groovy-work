@@ -1,4 +1,6 @@
 import groovy.json.JsonSlurper
+import org.codehaus.groovy.util.StringUtil
+import org.junit.platform.commons.util.StringUtils
 
 class RestClient {
 
@@ -47,7 +49,13 @@ class RestClient {
             return null
         }
 
-        def jsonSlurper = new JsonSlurper();
-        return jsonSlurper.parseText(response.getResponseBody())
+        def jsonSlurper = new JsonSlurper()
+        def responseBody = response.getResponseBody()
+        if (StringUtils.isNotBlank(responseBody)){
+            return jsonSlurper.parseText(responseBody)
+        }else {
+            return "OK"
+        }
+
     }
 }
