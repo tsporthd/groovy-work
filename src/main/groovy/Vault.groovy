@@ -11,7 +11,7 @@ class Vault {
     static final String UNSEAL_KEYS = "unseal_keys"
 
 
-    private def getKeyFileName(){
+    private def getKeyFileName() {
         return "$outputDir$File.separator$keyFileName"
     }
 
@@ -23,30 +23,36 @@ class Vault {
         return new JsonSlurper().parseText(new File(filePath).text)
     }
 
-    def initVault(){
+
+    def getKeys() {
+        def keySet = load(getKeyFileName())
+        def rootToken = keySet[ROOT_TOKEN]
+        def unsealKeys = keySet["keys_base64"]
+        def keys = ["root_token": rootToken, "unseal_keys": unsealKeys]
+        return keys
+    }
+
+    def initVault() {
         def endpoint = "$baseUrl/v1/sys/init"
         def headers = ["Content-Type": "application/json"]
         def result = restClient.get(endpoint, headers, "")
         def initialized = result["initialized"]
-        if ( !initialized ){
+        if (!initialized) {
             String body = "{" +
                     "  \"secret_shares\": 10," +
                     "  \"secret_threshold\": 3" +
                     "}"
-            result = restClient.put(endpoint,headers,body)
-            save(result,getKeyFileName())
+            result = restClient.put(endpoint, headers, body)
+            save(result, getKeyFileName())
             println("Vault Keys saved ")
-        }else{
+            return getKeys()
+        } else {
             println("Vault has already been initialized")
             // ok if it has been initialized we need to read keys/unseal it blah blah
             def keyFile = new File(getKeyFileName())
             if (keyFile.exists()) {
-                def keySet = load(getKeyFileName())
-                def rootToken = keySet[ROOT_TOKEN]
-                def unsealKeys = keySet["keys_base64"]
-                def keys = ["root_token" : rootToken, "unseal_keys" : unsealKeys]
-                return keys
-            }else{
+                return getKeys()
+            } else {
                 println(getKeyFileName() + " Does not exist")
                 return null
             }
@@ -54,15 +60,15 @@ class Vault {
 
     }
 
-    def unseal(String rootKey, def unsealKeys, int numKeysRequired){
+    def unseal(String rootKey, def unsealKeys, int numKeysRequired) {
         def endpoint = "$baseUrl/v1/sys/unseal"
-        def headers = ["Content-Type": "application/json", "X-Vault-Token" : rootKey]
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": rootKey]
         def sealed
-        for(int ctr =0; ctr < numKeysRequired; ctr++){
+        for (int ctr = 0; ctr < numKeysRequired; ctr++) {
             def body = "{\"key\":\"" + unsealKeys[ctr] + '\"}'
-            def result = restClient.post(endpoint,headers,body)
+            def result = restClient.post(endpoint, headers, body)
             sealed = result["sealed"]
-            if ( !sealed ){
+            if (!sealed) {
                 break
             }
         }
@@ -71,51 +77,76 @@ class Vault {
     }
 
 
-    def setPolicy(String rootKey, def policyId, def policyFile){
+    def setPolicy(String rootKey, def policyId, def policyFile) {
         def endpoint = "$baseUrl/v1/sys/policy/$policyId" // our policy endpoint
-        def headers = ["Content-Type": "application/json", "X-Vault-Token" : rootKey]
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": rootKey]
         String data = new File(policyFile).text
-        return restClient.post(endpoint,headers,data)
+        return restClient.post(endpoint, headers, data)
     }
 
-    def setAppRole(String rootKey){
+    def setAppRole(String rootKey) {
         def endpoint = "$baseUrl/v1/sys/auth/approle" // our policy endpoint
-        def headers = ["Content-Type": "application/json", "X-Vault-Token" : rootKey]
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": rootKey]
         String data = '{"type":"approle"}'
-        def result = restClient.post(endpoint,headers,data)
+        def result = restClient.post(endpoint, headers, data)
         println(result)
     }
 
-    def setDevRole(String rootKey, def devRole, def policyId){
+    def setDevRole(String rootKey, def devRole, def policyId) {
         def endpoint = "$baseUrl/v1/auth/approle/role/$devRole" // our policy endpoint
-        def headers = ["Content-Type": "application/json", "X-Vault-Token" : rootKey]
-        String data = '{"policies" : ["' + policyId +  '"]}'
-        return  restClient.post(endpoint,headers,data)
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": rootKey]
+        String data = '{"policies" : ["' + policyId + '"]}'
+        return restClient.post(endpoint, headers, data)
     }
 
-    def getRoleId(String rootKey, def devRole){
+    def getRoleId(String rootKey, def devRole) {
         def endpoint = "$baseUrl/v1/auth/approle/role/$devRole/role-id" // our policy endpoint
-        def headers = ["Content-Type": "application/json", "X-Vault-Token" : rootKey]
-        def roleData = restClient.get(endpoint,headers,"")
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": rootKey]
+        def roleData = restClient.get(endpoint, headers, "")
         def data = roleData["data"]
         return data["role_id"]
     }
 
-    def getSecret(String rootKey, def devRole){
+    def getSecret(String rootKey, def devRole) {
         def endpoint = "$baseUrl/v1/auth/approle/role/$devRole/secret-id" // our policy endpoint
-        def headers = ["Content-Type": "application/json", "X-Vault-Token" : rootKey]
-        def roleData = restClient.post(endpoint,headers,"")
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": rootKey]
+        def roleData = restClient.post(endpoint, headers, "")
         def data = roleData["data"]
         return data["secret_id"]
     }
 
-    def appRoleLogin(String roleId, String secretId){
+    def appRoleLogin(String roleId, String secretId) {
         def endpoint = "$baseUrl/v1/auth/approle/login" // our policy endpoint
         def headers = ["Content-Type": "application/json"]
         def data = '{"role_id" : "' + roleId + '", "secret_id": "' + secretId + '"}'
-        def roleData = restClient.post(endpoint,headers,data)
+        def roleData = restClient.post(endpoint, headers, data)
         def auth = roleData["auth"]
         return auth["client_token"]
+    }
+
+    def writeSecrets(String clientToken, def secretDataFile) {
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": clientToken]
+        def endpoint = "$baseUrl/v1/secret" // our policy endpoint
+        def secretsData = load(secretDataFile)
+        def secrets = secretsData["secrets"]
+        secrets.each { secret ->
+            def key = secret["key"]
+            def data = secret["data"]
+            def secretUrl = "$endpoint/$key"
+            def stringJson = new JsonBuilder(data).toPrettyString()
+            def secretReturn = restClient.post(secretUrl, headers, stringJson)
+            if (secretReturn == null) {
+                return null // work on this
+            }
+        }
+        return secrets
+    }
+
+    def readSecret(String clientToken, def secret){
+        def headers = ["Content-Type": "application/json", "X-Vault-Token": clientToken]
+        def endpoint = "$baseUrl/v1/secret/$secret"
+        def result = restClient.get(endpoint, headers, "")
+        return result["data"]
     }
 
 }
