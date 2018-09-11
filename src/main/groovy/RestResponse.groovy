@@ -1,3 +1,8 @@
+/**
+ * RestResponse POGO to return issues on a call
+ */
+
+
 class RestResponse {
     Integer statusCode
     String message

@@ -1,32 +1,75 @@
 import groovy.json.JsonSlurper
-import org.codehaus.groovy.util.StringUtil
 import org.junit.platform.commons.util.StringUtils
+
+
+/**
+ * RestClient class
+ * This is used to do basic Rest API calls in particular to vault but could be used in other areas however if cookie
+ * support was needed one may want to use HttpClient wrapper
+ */
 
 class RestClient {
 
-    private setHeaders(HttpURLConnection connection, def headers) {
+    /**
+     * Sets our headers for us prior to call
+     * @param connection the connection used
+     * @param map of headers
+     */
+    private static setHeaders(HttpURLConnection connection, def headers) {
         headers.each { k, v -> connection.setRequestProperty(k, v) }
     }
 
-    Object get(String requestUrl, def headers, String body){
+
+    /**
+     * Basic get request
+     * @param requestUrl url to invoke
+     * @param map of headers
+     * @param body to be passed to api empty string if no body
+     */
+    static Object get(String requestUrl, def headers, String body){
         return doHttpRequestWithJson(requestUrl,headers,body,"GET")
     }
 
-    Object post(String requestUrl, def headers, String body){
+    /**
+     * Basic post request
+     * @param requestUrl url to invoke
+     * @param map of headers
+     * @param body to be passed to api empty string if no body
+     */
+    static Object post(String requestUrl, def headers, String body){
         return doHttpRequestWithJson(requestUrl,headers,body,"POST")
     }
 
-    Object put(String requestUrl, def headers, String body){
+    /**
+     * Basic put request
+     * @param requestUrl url to invoke
+     * @param map of headers
+     * @param body to be passed to api empty string if no body
+     */
+    static Object put(String requestUrl, def headers, String body){
         return doHttpRequestWithJson(requestUrl,headers,body,"PUT")
     }
 
-    Object delete(String requestUrl, def headers, String body){
+    /**
+     * Basic delete request
+     * @param requestUrl url to invoke
+     * @param map of headers
+     * @param body to be passed to api empty string if no body
+     */
+    static Object delete(String requestUrl, def headers, String body){
         return doHttpRequestWithJson(requestUrl,headers,body,"DELETE")
     }
 
 
+    /**
+     * Our overloaded http request
+     * @param requestUrl url to invoke
+     * @param map of headers
+     * @param body to be passed to api empty string if no body
+     * @param our verb we are going to use GET,PUT ...
+     */
 
-    private Object doHttpRequestWithJson(String requestUrl, def headers, String body, String verb) {
+    private static Object doHttpRequestWithJson(String requestUrl, def headers, String body, String verb) {
         HttpURLConnection connection = (HttpURLConnection) requestUrl.toURL().openConnection()
         connection.setRequestMethod(verb)
         setHeaders(connection, headers)
