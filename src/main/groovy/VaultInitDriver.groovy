@@ -1,3 +1,4 @@
+#! /usr/bin/env groovy
 def outputDir = "/home/olbdev/vault/vaultData"
 def rootUrl = "http://localhost:8200"
 def devRole = 'dev-role'
